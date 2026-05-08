@@ -34,6 +34,11 @@ jobs:
           username: ${{ secrets.QUAY_ROBOT_USERNAME }}
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
+      - name: Copy credentials to Docker config for tkn
+        run: |
+          mkdir -p ~/.docker
+          cp "${REGISTRY_AUTH_FILE}" ~/.docker/config.json
+
       - name: Build and push push-to-external-registry bundle
         id: push_bundle
         run: |
