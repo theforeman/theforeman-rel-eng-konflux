@@ -34,30 +34,6 @@ jobs:
           username: ${{ secrets.QUAY_ROBOT_USERNAME }}
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
-      - name: Copy credentials to Docker config for tkn
-        run: |
-          mkdir -p ~/.docker
-          cp "${REGISTRY_AUTH_FILE}" ~/.docker/config.json
-
-      - name: Verify Quay.io push access
-        env:
-          QUAY_ROBOT_USERNAME: ${{ secrets.QUAY_ROBOT_USERNAME }}
-          QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
-        run: |
-          REPO=foreman/tekton-catalog/pipeline-push-to-external-registry
-          SCOPE="repository:${REPO}:push,pull"
-          TOKEN=$(curl -s -u "${QUAY_ROBOT_USERNAME}:${QUAY_ROBOT_TOKEN}" \
-            "https://quay.io/v2/auth?service=quay.io&scope=${SCOPE}" \
-            | python3 -c "import json,sys; print(json.load(sys.stdin).get('token',''))")
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer ${TOKEN}" \
-            "https://quay.io/v2/${REPO}/blobs/uploads/")
-          echo "Blob upload start HTTP status: ${STATUS}"
-          if [ "${STATUS}" != "202" ]; then
-            echo "Expected 202, got ${STATUS} — robot account lacks push permission on this repo"
-            exit 1
-          fi
-
       - name: Build and push push-to-external-registry bundle
         id: push_bundle
         run: |
