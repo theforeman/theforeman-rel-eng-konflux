@@ -46,16 +46,17 @@ jobs:
         run: |
           REPO=foreman/tekton-catalog/pipeline-push-to-external-registry
           SCOPE="repository:${REPO}:push,pull"
-          RESPONSE=$(curl -s -u "${QUAY_ROBOT_USERNAME}:${QUAY_ROBOT_TOKEN}" \
-            "https://quay.io/v2/auth?service=quay.io&scope=${SCOPE}")
-          echo "Auth response (token truncated):"
-          echo "${RESPONSE}" | python3 -c "
-          import json, sys
-          r = json.load(sys.stdin)
-          print('error:', r.get('error', 'none'))
-          t = r.get('token', '')
-          print('token:', t[:30] + '...' if t else '(none)')
-          "
+          TOKEN=$(curl -s -u "${QUAY_ROBOT_USERNAME}:${QUAY_ROBOT_TOKEN}" \
+            "https://quay.io/v2/auth?service=quay.io&scope=${SCOPE}" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin).get('token',''))")
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://quay.io/v2/${REPO}/blobs/uploads/")
+          echo "Blob upload start HTTP status: ${STATUS}"
+          if [ "${STATUS}" != "202" ]; then
+            echo "Expected 202, got ${STATUS} — robot account lacks push permission on this repo"
+            exit 1
+          fi
 
       - name: Build and push push-to-external-registry bundle
         id: push_bundle
