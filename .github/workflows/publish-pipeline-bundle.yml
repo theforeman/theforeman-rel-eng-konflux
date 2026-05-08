@@ -39,6 +39,24 @@ jobs:
           mkdir -p ~/.docker
           cp "${REGISTRY_AUTH_FILE}" ~/.docker/config.json
 
+      - name: Verify Quay.io push access
+        env:
+          QUAY_ROBOT_USERNAME: ${{ secrets.QUAY_ROBOT_USERNAME }}
+          QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
+        run: |
+          REPO=foreman/tekton-catalog/pipeline-push-to-external-registry
+          SCOPE="repository:${REPO}:push,pull"
+          RESPONSE=$(curl -s -u "${QUAY_ROBOT_USERNAME}:${QUAY_ROBOT_TOKEN}" \
+            "https://quay.io/v2/auth?service=quay.io&scope=${SCOPE}")
+          echo "Auth response (token truncated):"
+          echo "${RESPONSE}" | python3 -c "
+          import json, sys
+          r = json.load(sys.stdin)
+          print('error:', r.get('error', 'none'))
+          t = r.get('token', '')
+          print('token:', t[:30] + '...' if t else '(none)')
+          "
+
       - name: Build and push push-to-external-registry bundle
         id: push_bundle
         run: |
