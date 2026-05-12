@@ -2,21 +2,11 @@
 
 from __future__ import annotations
 
-import sys
-import time
 import unittest
 import urllib.error
-from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-# Ensure the hack/branch-release directory is on sys.path so that
-# ``from lib.rpm_check import wait_for_rpms`` works regardless of how pytest
-# is invoked.
-_HERE = Path(__file__).parent.parent  # hack/branch-release/
-if str(_HERE) not in sys.path:
-    sys.path.insert(0, str(_HERE))
-
-from lib.rpm_check import wait_for_rpms  # noqa: E402
+from lib.rpm_check import wait_for_rpms
 
 
 def _make_response(status: int) -> MagicMock:
@@ -66,7 +56,7 @@ class TestWaitForRpms(unittest.TestCase):
         mock_urlopen.side_effect = _http_error(404)
         with self.assertRaises(SystemExit) as ctx:
             wait_for_rpms(url="http://example.com/repomd.xml", timeout=60, interval=1, dry_run=False)
-        self.assertEqual(ctx.exception.code, "Version not found at http://example.com/repomd.xml — check VERSION in settings")
+        self.assertEqual(ctx.exception.code, 2)
 
     # ------------------------------------------------------------------
     # 4. Timeout → SystemExit(1)
@@ -96,8 +86,7 @@ class TestWaitForRpms(unittest.TestCase):
         with self.assertRaises(SystemExit) as ctx:
             wait_for_rpms(url="http://example.com/repomd.xml", timeout=10, interval=1, dry_run=False)
 
-        # exit code for timeout is the message string (SystemExit with string arg)
-        self.assertIn("Timed out", str(ctx.exception.code))
+        self.assertEqual(ctx.exception.code, 1)
 
     # ------------------------------------------------------------------
     # 5. dry_run=True → no HTTP call made, returns immediately
@@ -113,10 +102,8 @@ class TestWaitForRpms(unittest.TestCase):
     @patch("lib.rpm_check.time.sleep")
     @patch("lib.rpm_check.urllib.request.urlopen")
     def test_connection_error_then_200(self, mock_urlopen: MagicMock, mock_sleep: MagicMock) -> None:
-        import urllib.error as ue
-
         mock_urlopen.side_effect = [
-            ue.URLError(reason="Connection refused"),
+            urllib.error.URLError(reason="Connection refused"),
             _make_response(200),
         ]
         wait_for_rpms(url="http://example.com/repomd.xml", timeout=120, interval=1, dry_run=False)

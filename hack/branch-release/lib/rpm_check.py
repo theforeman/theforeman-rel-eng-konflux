@@ -6,7 +6,7 @@ Usable as a library:
     wait_for_rpms(url, timeout=14400, interval=60, dry_run=False)
 
 Or as a standalone script:
-    python3 -m hack.branch-release.lib.rpm_check \\
+    python3 hack/branch-release/lib/rpm_check.py \\
         --url=https://yum.theforeman.org/releases/3.19/el9/x86_64/repodata/repomd.xml \\
         --timeout=14400 --interval=60 [--dry-run]
 """
@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import logging
 import socket
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -74,9 +75,8 @@ def wait_for_rpms(url: str, timeout: int, interval: int, dry_run: bool) -> None:
             return
 
         if status_code == 404:
-            raise SystemExit(
-                f"Version not found at {url} — check VERSION in settings"
-            )
+            print(f"Version not found at {url} — check VERSION in settings", file=sys.stderr)
+            raise SystemExit(2)
 
         remaining = deadline - time.monotonic()
 
@@ -106,9 +106,8 @@ def wait_for_rpms(url: str, timeout: int, interval: int, dry_run: bool) -> None:
             break
 
     elapsed_int = int(time.monotonic() - start)
-    raise SystemExit(
-        f"Timed out after {elapsed_int}s waiting for RPMs at {url}"
-    )
+    print(f"Timed out after {elapsed_int}s waiting for RPMs at {url}", file=sys.stderr)
+    raise SystemExit(1)
 
 
 def _build_parser() -> argparse.ArgumentParser:

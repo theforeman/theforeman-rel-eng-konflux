@@ -2,16 +2,11 @@
 name: Test branch-release scripts
 
 on:
-  push:
-    branches:
-      - develop
-    paths:
-      - 'hack/branch-release/**'
-      - '.github/workflows/test-branch-release.yml'
   pull_request:
     paths:
       - 'hack/branch-release/**'
       - '.github/workflows/test-branch-release.yml'
+  workflow_dispatch:
 
 jobs:
   test:
@@ -23,6 +18,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          python-version: "3.12"
 
       - name: Run tests
         run: uv run --with pytest pytest hack/branch-release/tests/ -v
