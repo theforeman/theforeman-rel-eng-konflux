@@ -9,7 +9,7 @@ versioned Konflux branch. It drives Issues #24, #26, #27, and #28.
 
 ## Nightly component inventory
 
-Five nightly components exist. Three are in scope for versioned release branching
+Five nightly components exist. Four are in scope for versioned release branching
 automation; one is explicitly excluded (see the section below).
 
 | Component | Repository | Default branch | In scope |
@@ -67,8 +67,10 @@ remains managed there; it is simply not touched by the branching scripts.
 | `dockerfile` | `Containerfile` |
 | Containerfile path | `images/foreman/Containerfile` |
 | CEL `target_branch` | `master` |
-| CEL `pathChanged` globs | `images/foreman/***`, `.tekton/foreman-develop-{push,pull-request}.yaml` |
+| CEL `pathChanged` globs | `images/foreman/***`, `.tekton/foreman-develop-{push,pull-request}.yaml` ¹ |
 | `buildah-oci-ta` bundle | `quay.io/foreman/tekton-catalog/task-buildah-oci-ta@sha256:4b16776e9028dc9d51e30cd77e832ce9b4b7a400851ede070f84e780bb20de63` |
+
+> ¹ The `{push,pull-request}` shorthand represents two separate CEL expressions: the push pipeline references only its own file (`.tekton/foreman-develop-push.yaml`), and the pull-request pipeline references only `.tekton/foreman-develop-pull-request.yaml`. The same convention applies to all components throughout this document.
 
 **Containerfile version build args** (`images/foreman/Containerfile`):
 
@@ -91,7 +93,7 @@ ARG KATELLO_VERSION=nightly
 | Containerfile path | `images/foreman-proxy/Containerfile` |
 | CEL `target_branch` | `master` |
 | CEL `pathChanged` globs | `images/foreman-proxy/***`, `.tekton/foreman-proxy-develop-{push,pull-request}.yaml` |
-| `buildah-oci-ta` bundle | `quay.io/konflux-ci/tekton-catalog/task-buildah-oci-ta:0.7@sha256:5ccd3a83a04cb98af78ac574db76775f8e871b1bbb746994539404257b5707f1` |
+| `buildah-oci-ta` bundle | `quay.io/foreman/tekton-catalog/task-buildah-oci-ta@sha256:4b16776e9028dc9d51e30cd77e832ce9b4b7a400851ede070f84e780bb20de63` |
 
 **Containerfile version build args** (`images/foreman-proxy/Containerfile`):
 
@@ -196,8 +198,9 @@ For every component, the push pipeline builds two image references:
    `quay.io/theforeman/<component>:nightly`
    This is the publicly consumed image.
 
-The PR pipeline adds a `pull-request-{{pull_request_number}}` tag and sets
+The PR pipeline tags the staging image as `on-pr-{{revision}}` (commit SHA) and sets
 `image-expires-after: 5d` so ephemeral PR images are cleaned up automatically.
+The pull request number appears only in pipeline annotation metadata, not in the image tag.
 
 ---
 
@@ -338,11 +341,17 @@ this project is published at:
 quay.io/foreman/tekton-catalog/task-buildah-oci-ta@sha256:<digest>
 ```
 
+> **Note:** As of this writing, only `foreman-develop` and `foreman-proxy-develop`
+> reference the custom bundle. `pulp-develop` and `candlepin-develop` still
+> reference the upstream `quay.io/konflux-ci/tekton-catalog/task-buildah-oci-ta`
+> bundle. Migrating all repos to the custom bundle is tracked in issue #40.
+
 When the upstream `pipeline-push-to-external-registry` bundle schema changes
 (new parameters, renamed tasks, etc.):
 
-1. Update the digest in the Jinja2 template located at
-   `hack/branch-release/templates/` in this repository.
+1. Update the digest in the Jinja2 template at
+   `hack/branch-release/templates/` in this repository (planned infrastructure,
+   to be created by issues #26–#28).
 2. Regenerate all versioned `.tekton` files from the updated template.
 3. Open a PR to each affected OCI image repository to land the updated files on
    the versioned branches.
