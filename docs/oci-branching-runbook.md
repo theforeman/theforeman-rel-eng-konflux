@@ -1,4 +1,3 @@
----
 # Manual OCI Branching Runbook
 
 This runbook covers every step needed to branch a new Foreman release across
@@ -130,7 +129,8 @@ and `nightly` are rejected.
 
 ### Environment variables
 
-Export these before running any commands in this runbook:
+Run the following block once from the **root of the `theforeman-rel-eng-konflux`
+repo** before starting any phase. All later steps assume these variables are set.
 
 ```bash
 export GITHUB_USER=<your-github-username>
@@ -138,6 +138,13 @@ export GITLAB_USER=<your-gitlab-username>
 export VERSION=3.19
 export BRANCH_NAME=foreman-3.19
 export WORKTREE_DIR=/tmp   # optional — override if /tmp is too small or restricted
+
+# Source the release settings file — sets KATELLO_VERSION, CANDLEPIN_VERSION,
+# CANDLEPIN_VERSION_XYZ, RELEASE_TAGS, RPM_CHECK_URL, RPM_CHECK_TIMEOUT, etc.
+source releases/foreman/$VERSION/settings
+
+# Pre-compute TAGS_YAML for use in tenants-config heredocs (Phase 5)
+export TAGS_YAML=$(for t in $RELEASE_TAGS; do printf '              - "%s"\n' "$t"; done)
 ```
 
 ---
@@ -255,10 +262,9 @@ release branch. Confirm at the [Konflux console](https://console.redhat.com/appl
   cd foreman-oci-images
   git remote rename origin upstream
   git remote add origin https://github.com/$GITHUB_USER/foreman-oci-images.git
-  git fetch upstream
   ```
 
-  **Expected output:** normal git clone and fetch output. Verify remotes:
+  **Expected output:** normal git clone output. Verify remotes:
 
   ```bash
   git remote -v
@@ -286,13 +292,9 @@ release branch. Confirm at the [Konflux console](https://console.redhat.com/appl
 
   **Expected output:** `Switched to a new branch 'foreman-3.19'`
 
-- [ ] **1.5** Patch Containerfile ARG values to pin release versions.
-
-  Load version values from your settings file:
-
-  ```bash
-  source <(grep -E '^(KATELLO_VERSION|CANDLEPIN_VERSION)=' releases/foreman/$VERSION/settings)
-  ```
+- [ ] **1.5** Patch Containerfile ARG values to pin release versions
+  (`KATELLO_VERSION` was loaded by `source releases/foreman/$VERSION/settings`
+  in the Environment Variables setup).
 
   Patch `images/foreman/Containerfile`:
 
@@ -387,7 +389,6 @@ release branch. Confirm at the [Konflux console](https://console.redhat.com/appl
   cd pulp-oci-images
   git remote rename origin upstream
   git remote add origin https://github.com/$GITHUB_USER/pulp-oci-images.git
-  git fetch upstream
   ```
 
 - [ ] **2.3** Check for existing branch:
@@ -458,7 +459,6 @@ release branch. Confirm at the [Konflux console](https://console.redhat.com/appl
   cd candlepin-oci-images
   git remote rename origin upstream
   git remote add origin https://github.com/$GITHUB_USER/candlepin-oci-images.git
-  git fetch upstream
   ```
 
 - [ ] **3.3** Check for existing branch:
@@ -475,13 +475,9 @@ release branch. Confirm at the [Konflux console](https://console.redhat.com/appl
   git checkout -b $BRANCH_NAME upstream/$DEFAULT_BRANCH_CP
   ```
 
-- [ ] **3.5** Load Candlepin version values from your settings file:
-
-  ```bash
-  source <(grep -E '^(CANDLEPIN_VERSION|CANDLEPIN_VERSION_XYZ)=' releases/foreman/$VERSION/settings)
-  ```
-
-  Patch `images/candlepin/Containerfile`:
+- [ ] **3.5** Patch `images/candlepin/Containerfile` (`CANDLEPIN_VERSION` and
+  `CANDLEPIN_VERSION_XYZ` were loaded by `source releases/foreman/$VERSION/settings`
+  in the Environment Variables setup):
 
   ```bash
   sed -i "s|^ARG CANDLEPIN_VERSION=.*|ARG CANDLEPIN_VERSION=$CANDLEPIN_VERSION|" images/candlepin/Containerfile
@@ -544,10 +540,10 @@ release branch. Confirm at the [Konflux console](https://console.redhat.com/appl
 OCI branches (Phases 1–3) can be created before RPMs exist. The RPM gate
 controls only when the tenants-config MR is merged.
 
-- [ ] **4.1** Poll the RPM check URL until it returns HTTP 200:
+- [ ] **4.1** Poll the RPM check URL until it returns HTTP 200 (`RPM_CHECK_URL`
+  was set by `source releases/foreman/$VERSION/settings`):
 
   ```bash
-  RPM_CHECK_URL=$(grep ^RPM_CHECK_URL releases/foreman/$VERSION/settings | cut -d= -f2-)
   echo "Polling: $RPM_CHECK_URL"
 
   while true; do
@@ -593,7 +589,6 @@ the MR now). See [Phase 6](#phase-6--merge-sequence) for the correct merge order
   cd tenants-config
   git remote rename origin upstream
   git remote add origin https://gitlab.com/$GITLAB_USER/tenants-config.git
-  git fetch upstream
   ```
 
 - [ ] Create the MR branch:
@@ -681,13 +676,10 @@ Repeat for each project: `foreman`, `pulp`, `candlepin`.
   **Verify:** `cat $TENANT/foreman/components/$VERSION/components.yaml` and
   confirm `name: foreman-3.19` appears (with your actual version).
 
-- [ ] Write `$TENANT/foreman/releaseplans/$VERSION/kustomization.yaml`. Adjust
-  the `tags` list to match the `RELEASE_TAGS` values from your settings file:
+- [ ] Write `$TENANT/foreman/releaseplans/$VERSION/kustomization.yaml`
+  (`TAGS_YAML` was pre-computed in the Environment Variables setup):
 
   ```bash
-  RELEASE_TAGS=$(grep ^RELEASE_TAGS releases/foreman/$VERSION/settings | cut -d= -f2- | tr -d '"')
-  TAGS_YAML=$(for t in $RELEASE_TAGS; do printf '              - "%s"\n' "$t"; done)
-
   cat > $TENANT/foreman/releaseplans/$VERSION/kustomization.yaml << EOF
   ---
   apiVersion: kustomize.config.k8s.io/v1beta1
@@ -981,7 +973,9 @@ Repeat for each project: `foreman`, `pulp`, `candlepin`.
 > The three OCI repo PRs and the tenants-config MR must be merged in this order.
 
 - [ ] **6.1** Get reviews and approvals for all three OCI repo PRs
-  (`foreman-oci-images`, `pulp-oci-images`, `candlepin-oci-images`).
+  (`foreman-oci-images`, `pulp-oci-images`, `candlepin-oci-images`). Check each
+  repo's merge policy — substitute `--squash` for `--merge` below if the repo
+  requires squash merges.
 
 - [ ] **6.2** Merge the `foreman-oci-images` PR (pass the PR number saved in step 1.8,
   or let `gh` look it up by branch):
@@ -1012,8 +1006,7 @@ Repeat for each project: `foreman`, `pulp`, `candlepin`.
   If you skipped Phase 4, verify now:
 
   ```bash
-  curl -o /dev/null -s -w "%{http_code}" \
-    "$(grep ^RPM_CHECK_URL releases/foreman/$VERSION/settings | cut -d= -f2-)"
+  curl -o /dev/null -s -w "%{http_code}" "$RPM_CHECK_URL"
   ```
 
   **Expected output:** `200`
