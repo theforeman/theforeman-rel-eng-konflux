@@ -1130,7 +1130,6 @@ unreachable.
 **Diagnosis:**
 
 ```bash
-RPM_CHECK_URL=$(grep ^RPM_CHECK_URL releases/foreman/$VERSION/settings | cut -d= -f2-)
 curl -v "$RPM_CHECK_URL"
 ```
 
