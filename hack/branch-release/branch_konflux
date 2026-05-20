@@ -58,7 +58,7 @@ def _load_user_settings() -> None:
 
 
 from lib.config import ReleaseConfig, load_config  # noqa: E402
-from lib.containerfile import patch_arg, patch_makefile_var  # noqa: E402
+from lib.containerfile import patch_arg, patch_makefile_var, patch_workflow_env  # noqa: E402
 from lib.git import (  # noqa: E402
     branch_exists_remote,
     clone_repo,
@@ -114,6 +114,14 @@ _MAKEFILE_PATCHES: dict[str, list[tuple[str, str, str]]] = {
         ("Makefile", "FOREMAN_XY_TAG", "version"),
         ("Makefile", "FOREMAN_XYZ_TAG", "version_xyz"),
         ("Makefile", "KATELLO_VERSION", "katello_version"),
+    ],
+}
+
+# Per-repo GitHub Actions workflow env patches:
+#   {repo_name: [(workflow_rel_path, var_name, config_attr), ...]}
+_WORKFLOW_PATCHES: dict[str, list[tuple[str, str, str]]] = {
+    "foreman-oci-images": [
+        (".github/workflows/integration.yml", "IMAGE_TAG", "version"),
     ],
 }
 
@@ -379,6 +387,17 @@ def _step_branch_oci(
                 any_patched = True
             else:
                 if patch_makefile_var(makefile, var_name, new_value, dry_run=False):
+                    any_patched = True
+
+        # Apply GitHub Actions workflow env patches.
+        for rel_path, var_name, config_attr in _WORKFLOW_PATCHES.get(repo_name, []):
+            workflow = worktree / rel_path
+            new_value = getattr(config, config_attr)
+            if dry_run:
+                print(f"[dry-run] Would patch {workflow}: {var_name}: {new_value!r}")
+                any_patched = True
+            else:
+                if patch_workflow_env(workflow, var_name, new_value, dry_run=False):
                     any_patched = True
 
         if any_patched:
