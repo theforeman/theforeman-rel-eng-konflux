@@ -93,3 +93,47 @@ def patch_arg(
     containerfile_path.write_text(new_content)
     print(f"  Patched {containerfile_path}: ARG {arg_name}={current_value!r} -> {new_value!r}")
     return True
+
+
+def patch_makefile_var(
+    makefile_path: Path,
+    var_name: str,
+    new_value: str,
+    dry_run: bool,
+) -> bool:
+    """Replace the value of a Makefile variable in *makefile_path*.
+
+    Matches lines of the form::
+
+        VAR_NAME=<any_value>
+
+    Unlike :func:`patch_arg`, there is no ``ARG`` prefix.
+    """
+    if not makefile_path.exists():
+        print(f"ERROR: Makefile not found: {makefile_path}", file=sys.stderr)
+        raise SystemExit(1)
+
+    content = makefile_path.read_text()
+    pattern = re.compile(r"^(" + re.escape(var_name) + r"=)(.*)$", re.MULTILINE)
+
+    match = pattern.search(content)
+    if match is None:
+        print(f"ERROR: {var_name} not found in {makefile_path}", file=sys.stderr)
+        raise SystemExit(1)
+
+    current_value = match.group(2)
+    if current_value == new_value:
+        return False
+
+    new_content = pattern.sub(lambda m: m.group(1) + new_value, content, count=1)
+
+    if dry_run:
+        print(
+            f"[dry-run] Would patch {makefile_path}: "
+            f"{var_name}={current_value!r} -> {new_value!r}"
+        )
+        return True
+
+    makefile_path.write_text(new_content)
+    print(f"  Patched {makefile_path}: {var_name}={current_value!r} -> {new_value!r}")
+    return True

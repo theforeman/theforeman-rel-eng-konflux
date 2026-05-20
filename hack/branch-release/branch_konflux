@@ -58,7 +58,7 @@ def _load_user_settings() -> None:
 
 
 from lib.config import ReleaseConfig, load_config  # noqa: E402
-from lib.containerfile import patch_arg  # noqa: E402
+from lib.containerfile import patch_arg, patch_makefile_var  # noqa: E402
 from lib.git import (  # noqa: E402
     branch_exists_remote,
     clone_repo,
@@ -104,6 +104,16 @@ _CONTAINERFILE_PATCHES: dict[str, list[tuple[str, str, str]]] = {
     ],
     "pulp-oci-images": [
         ("images/pulp/Containerfile", "VERSION", "pulp_version"),
+    ],
+}
+
+# Per-repo Makefile variable patches:
+#   {repo_name: [(makefile_rel_path, var_name, config_attr), ...]}
+_MAKEFILE_PATCHES: dict[str, list[tuple[str, str, str]]] = {
+    "foreman-oci-images": [
+        ("Makefile", "FOREMAN_XY_TAG", "version"),
+        ("Makefile", "FOREMAN_XYZ_TAG", "version_xyz"),
+        ("Makefile", "KATELLO_VERSION", "katello_version"),
     ],
 }
 
@@ -349,21 +359,30 @@ def _step_branch_oci(
         push_branch("upstream", config.branch_name, worktree, dry_run)
 
         # Apply Containerfile patches on top of the upstream branch.
-        patches = _CONTAINERFILE_PATCHES.get(repo_name, [])
         any_patched = False
-        for rel_path, arg_name, config_attr in patches:
+        for rel_path, arg_name, config_attr in _CONTAINERFILE_PATCHES.get(repo_name, []):
             containerfile = worktree / rel_path
             new_value = getattr(config, config_attr)
             if dry_run:
                 print(f"[dry-run] Would patch {containerfile}: ARG {arg_name}={new_value!r}")
                 any_patched = True
             else:
-                patched = patch_arg(containerfile, arg_name, new_value, dry_run=False)
-                if patched:
+                if patch_arg(containerfile, arg_name, new_value, dry_run=False):
+                    any_patched = True
+
+        # Apply Makefile patches (e.g. version tags used by make build).
+        for rel_path, var_name, config_attr in _MAKEFILE_PATCHES.get(repo_name, []):
+            makefile = worktree / rel_path
+            new_value = getattr(config, config_attr)
+            if dry_run:
+                print(f"[dry-run] Would patch {makefile}: {var_name}={new_value!r}")
+                any_patched = True
+            else:
+                if patch_makefile_var(makefile, var_name, new_value, dry_run=False):
                     any_patched = True
 
         if any_patched:
-            commit_all(f"Branch {config.branch_name}: patch Containerfile versions", worktree, dry_run)
+            commit_all(f"Branch {config.branch_name}: patch Containerfile versions and Makefile tags", worktree, dry_run)
         else:
             commit_empty(f"Branch {config.branch_name}: mark release branch", worktree, dry_run)
 

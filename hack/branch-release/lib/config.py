@@ -54,6 +54,7 @@ class ReleaseConfig:
     branch_name: str
     oci_repos: list[str]
     release_tags: list[str]
+    version_xyz: str  # first patch-level tag, e.g. "3.19.0-rc1"
     rpm_check_url: str
     rpm_check_timeout: int
     katello_version: str
@@ -131,11 +132,16 @@ def load_config(version: str) -> ReleaseConfig:
         )
         raise SystemExit(1)
 
+    tags = data["RELEASE_TAGS"].split()
+    # version_xyz is the first patch-level tag (e.g. "3.19.0-rc1"); fall back to XY if only one tag.
+    version_xyz = tags[1] if len(tags) > 1 else tags[0]
+
     return ReleaseConfig(
         version=data["VERSION"],
         branch_name=data["BRANCH_NAME"],
         oci_repos=data["OCI_REPOS"].split(),
-        release_tags=data["RELEASE_TAGS"].split(),
+        release_tags=tags,
+        version_xyz=version_xyz,
         rpm_check_url=data["RPM_CHECK_URL"],
         rpm_check_timeout=_parse_int(data["RPM_CHECK_TIMEOUT"], "RPM_CHECK_TIMEOUT", settings_path),
         katello_version=data["KATELLO_VERSION"],
