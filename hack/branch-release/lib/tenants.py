@@ -106,7 +106,7 @@ resources:
 
 
 def _components_yaml_content(config: ReleaseConfig, project: "_ProjectSpec") -> str:
-    v = config.version
+    v = config.version.replace(".", "-")  # dots invalid in Kubernetes names
     b = config.branch_name
     parts: list[str] = []
     for comp in project.components:
@@ -136,7 +136,7 @@ spec:
 
 
 def _releaseplan_kustomization_content(config: ReleaseConfig, project: "_ProjectSpec") -> str:
-    v = config.version
+    v = config.version.replace(".", "-")  # dots invalid in Kubernetes names
     tags = config.release_tags
     tag_lines = "\n".join(f'              - "{t}"' for t in tags)
 
