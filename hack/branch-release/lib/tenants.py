@@ -101,13 +101,38 @@ def _components_kustomization_content() -> str:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - application.yaml
   - components.yaml
+"""
+
+
+def _application_yaml_content(config: ReleaseConfig, project: "_ProjectSpec") -> str:
+    """Generate a versioned Application CRD (e.g. pulp-3-19).
+
+    Versioned components must live in their own Application so that
+    Konflux snapshots are scoped to only the versioned components.
+    Without this, a build of pulp-3-19 would create a snapshot that
+    also includes pulp-develop, causing both ReleasePlans to fire.
+    """
+    v = config.version.replace(".", "-")
+    app_name = f"{project.app_name}-{v}"
+    display = f"{project.app_name.capitalize()} {config.version}"
+    return f"""\
+---
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Application
+metadata:
+  name: {app_name}
+  namespace: theforeman-org-tenant
+spec:
+  displayName: {display}
 """
 
 
 def _components_yaml_content(config: ReleaseConfig, project: "_ProjectSpec") -> str:
     v = config.version.replace(".", "-")  # dots invalid in Kubernetes names
     b = config.branch_name
+    versioned_app = f"{project.app_name}-{v}"  # own Application per version
     parts: list[str] = []
     for comp in project.components:
         parts.append(f"""\
@@ -122,7 +147,7 @@ metadata:
   name: {comp.name_base}-{v}
   namespace: theforeman-org-tenant
 spec:
-  application: {project.app_name}
+  application: {versioned_app}
   componentName: {comp.name_base}-{v}
   containerImage: {comp.staging_image}
   source:
@@ -181,6 +206,9 @@ patches:
     patch: |-
 {single_component_patch}\
       - op: replace
+        path: /spec/application
+        value: {project.app_name}-{v}
+      - op: replace
         path: /spec/data/mapping/components
         value:
 {components_value}
@@ -216,12 +244,13 @@ def _update_parent_kustomization(kustomization_path: Path, version: str, dry_run
 
 
 def generate_component_overlay(config: ReleaseConfig, project: "_ProjectSpec", tenant_path: Path, dry_run: bool) -> None:
-    """Generate components/<VERSION>/ kustomization.yaml and components.yaml."""
+    """Generate components/<VERSION>/ kustomization.yaml, application.yaml, and components.yaml."""
     overlay_dir = tenant_path / "components" / config.version
     if not dry_run:
         overlay_dir.mkdir(parents=True, exist_ok=True)
 
     _write_file(overlay_dir / "kustomization.yaml", _components_kustomization_content(), dry_run)
+    _write_file(overlay_dir / "application.yaml", _application_yaml_content(config, project), dry_run)
     _write_file(overlay_dir / "components.yaml", _components_yaml_content(config, project), dry_run)
 
 
