@@ -160,9 +160,26 @@ spec:
     return "".join(parts)
 
 
+def _project_release_tags(config: ReleaseConfig, project: "_ProjectSpec") -> list[str]:
+    """Return the image tags to push for each project's release.
+
+    foreman: Foreman version tags (e.g. ["3.19", "3.19.0-rc1"])
+    pulp:    Pulp version + foreman-context tag (e.g. ["3.105", "foreman-3.19"])
+    candlepin: Candlepin XY + XYZ + foreman-context tag (e.g. ["4.7", "4.7.4", "foreman-3.19"])
+
+    The foreman-<version> tag is what foremanctl uses to find the correct
+    versioned candlepin/pulp images when deploying a specific Foreman release.
+    """
+    if project.app_name == "pulp":
+        return [config.pulp_version, config.foreman_tag]
+    if project.app_name == "candlepin":
+        return [config.candlepin_version, config.candlepin_version_xyz, config.foreman_tag]
+    return list(config.release_tags)
+
+
 def _releaseplan_kustomization_content(config: ReleaseConfig, project: "_ProjectSpec") -> str:
     v = config.version.replace(".", "-")  # dots invalid in Kubernetes names
-    tags = config.release_tags
+    tags = _project_release_tags(config, project)
     tag_lines = "\n".join(f'              - "{t}"' for t in tags)
 
     components_patch_lines: list[str] = []
