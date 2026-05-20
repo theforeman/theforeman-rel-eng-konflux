@@ -115,6 +115,16 @@ _MAKEFILE_PATCHES: dict[str, list[tuple[str, str, str]]] = {
         ("Makefile", "FOREMAN_XYZ_TAG", "version_xyz"),
         ("Makefile", "KATELLO_VERSION", "katello_version"),
     ],
+    "candlepin-oci-images": [
+        ("Makefile", "FOREMAN_XY_TAG", "foreman_tag"),
+        ("Makefile", "FOREMAN_XYZ_TAG", "foreman_tag"),
+    ],
+    "pulp-oci-images": [
+        ("Makefile", "PROJECT_XY_TAG", "pulp_version"),
+        ("Makefile", "PROJECT_XYZ_TAG", "pulp_version"),
+        ("Makefile", "FOREMAN_XY_TAG", "foreman_tag"),
+        ("Makefile", "FOREMAN_XYZ_TAG", "foreman_tag"),
+    ],
 }
 
 # Per-repo GitHub Actions workflow env patches:

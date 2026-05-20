@@ -52,6 +52,7 @@ class ReleaseConfig:
 
     version: str
     branch_name: str
+    foreman_tag: str  # "foreman-<version>", e.g. "foreman-3.19" — used as image tag prefix
     oci_repos: list[str]
     release_tags: list[str]
     version_xyz: str  # first patch-level tag, e.g. "3.19.0-rc1"
@@ -139,6 +140,7 @@ def load_config(version: str) -> ReleaseConfig:
     return ReleaseConfig(
         version=data["VERSION"],
         branch_name=data["BRANCH_NAME"],
+        foreman_tag=f"foreman-{data['VERSION']}",
         oci_repos=data["OCI_REPOS"].split(),
         release_tags=tags,
         version_xyz=version_xyz,

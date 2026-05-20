@@ -27,6 +27,7 @@ from lib.tenants import (  # noqa: E402
 SAMPLE_CONFIG = ReleaseConfig(
     version="3.19",
     branch_name="foreman-3.19",
+    foreman_tag="foreman-3.19",
     oci_repos=["theforeman/foreman-oci-images"],
     release_tags=["3.19", "3.19.0"],
     version_xyz="3.19.0",
@@ -151,6 +152,7 @@ class TestGenerateReleaseplanOverlay(unittest.TestCase):
         cfg = ReleaseConfig(
             version="3.20",
             branch_name="foreman-3.20",
+            foreman_tag="foreman-3.20",
             oci_repos=["theforeman/foreman-oci-images"],
             release_tags=["3.20", "3.20.0", "3.20.1"],
             version_xyz="3.20.0",
