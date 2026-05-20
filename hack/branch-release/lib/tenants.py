@@ -203,14 +203,14 @@ def _insert_resource_entry(content: str, entry: str, path: "Path | None" = None)
 
 def _update_parent_kustomization(kustomization_path: Path, version: str, dry_run: bool) -> None:
     """Idempotently add '  - {version}/' to the resources list in kustomization_path."""
+    if dry_run:
+        print(f"[dry-run] Would update {kustomization_path}: add {version!r} to resources")
+        return
     entry_line = f"  - {version}/"
     content = kustomization_path.read_text()
     if entry_line in content.splitlines():
         return
     new_content = _insert_resource_entry(content, version, path=kustomization_path)
-    if dry_run:
-        print(f"[dry-run] Would write {kustomization_path}")
-        return
     kustomization_path.write_text(new_content)
     print(f"  Wrote {kustomization_path}")
 

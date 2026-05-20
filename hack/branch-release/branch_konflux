@@ -63,6 +63,7 @@ from lib.git import (  # noqa: E402
     branch_exists_remote,
     clone_repo,
     commit_all,
+    commit_empty,
     create_branch,
     detect_default_branch,
     push_branch,
@@ -97,10 +98,12 @@ _CONTAINERFILE_PATCHES: dict[str, list[tuple[str, str, str]]] = {
         ("images/foreman-proxy/Containerfile", "FOREMAN_VERSION", "version"),
     ],
     "candlepin-oci-images": [
-        ("images/candlepin/Containerfile", "CANDLEPIN_VERSION", "candlepin_version"),
-        ("images/candlepin/Containerfile", "CANDLEPIN_VERSION_XYZ", "candlepin_version_xyz"),
+        ("images/candlepin/Containerfile", "VERSION", "candlepin_version"),
+        ("images/candlepin/Containerfile", "VERSION_XYZ", "candlepin_version_xyz"),
     ],
-    "pulp-oci-images": [],  # no pinned version ARG to patch
+    "pulp-oci-images": [
+        ("images/pulp/Containerfile", "VERSION", "pulp_version"),
+    ],
 }
 
 # ---------------------------------------------------------------------------
@@ -292,7 +295,10 @@ def _step_branch_oci(
     from lib.subprocess_helpers import dry_print as _dry_print
 
     repo_name = repo.split("/")[-1]
-    upstream_url = f"https://github.com/{repo}.git"
+    upstream_org = repo.split("/")[0]
+    upstream_url = f"https://github.com/{repo}.git"  # HTTPS for cloning (public, no auth needed)
+    upstream_push_base = os.environ.get("GITHUB_UPSTREAM_URL_BASE", f"https://github.com/{upstream_org}")
+    upstream_push_url = f"{upstream_push_base.rstrip('/')}/{repo_name}.git"
     fork_base = os.environ.get("GITHUB_FORK_URL_BASE", f"https://github.com/{github_user}")
     fork_url = f"{fork_base.rstrip('/')}/{repo_name}.git"
 
@@ -304,6 +310,14 @@ def _step_branch_oci(
         print(f"  Default branch for {repo}: {default_branch}")
 
     clone_repo(upstream_url, fork_url, worktree, dry_run)
+
+    # If the upstream push URL differs from the fetch URL (e.g., SSH vs HTTPS), configure it.
+    if upstream_push_url != upstream_url:
+        if dry_run:
+            from lib.subprocess_helpers import dry_print as _dp
+            _dp(["git", "remote", "set-url", "--push", "upstream", upstream_push_url], cwd=worktree)
+        else:
+            _run(["git", "remote", "set-url", "--push", "upstream", upstream_push_url], cwd=worktree)
 
     # Check whether the branch already exists on upstream.
     # branch_exists_remote requires a live worktree, so skip in dry-run and just show intent.
@@ -330,8 +344,10 @@ def _step_branch_oci(
 
     if not branch_exists:
         create_branch(config.branch_name, f"upstream/{default_branch}", worktree, dry_run)
+        # Push to upstream first — this creates the versioned branch in the upstream repo.
+        push_branch("upstream", config.branch_name, worktree, dry_run)
 
-        # Apply Containerfile patches.
+        # Apply Containerfile patches on top of the upstream branch.
         patches = _CONTAINERFILE_PATCHES.get(repo_name, [])
         any_patched = False
         for rel_path, arg_name, config_attr in patches:
@@ -347,14 +363,18 @@ def _step_branch_oci(
 
         if any_patched:
             commit_all(f"Branch {config.branch_name}: patch Containerfile versions", worktree, dry_run)
+        else:
+            commit_empty(f"Branch {config.branch_name}: mark release branch", worktree, dry_run)
 
-        push_branch("origin", config.branch_name, worktree, dry_run)
+        # Force-push to fork — the fork may already have the branch from a previous partial run.
+        push_branch("origin", config.branch_name, worktree, dry_run, force=True)
 
+    # PR targets the versioned branch in upstream so Konflux can build from it.
     # open_pr is idempotent — it returns the existing PR URL if one already exists.
     pr_url = open_pr(
         title=f"Branch: {config.branch_name}",
         body=_pr_body(config),
-        base_branch=default_branch,
+        base_branch=config.branch_name,
         head=f"{github_user}:{config.branch_name}",
         draft=True,
         cwd=worktree,
@@ -405,7 +425,7 @@ def _step_branch_tenants(
         worktree,
         dry_run,
     )
-    push_branch("origin", branch_name, worktree, dry_run)
+    push_branch("origin", branch_name, worktree, dry_run, force=True)
 
     mr_url = open_mr(
         title=f"Branch {config.branch_name}: register Konflux components",

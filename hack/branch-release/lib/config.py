@@ -57,6 +57,7 @@ class ReleaseConfig:
     rpm_check_url: str
     rpm_check_timeout: int
     katello_version: str
+    pulp_version: str
     candlepin_version: str
     candlepin_version_xyz: str
 
@@ -118,6 +119,7 @@ def load_config(version: str) -> ReleaseConfig:
         "RPM_CHECK_URL",
         "RPM_CHECK_TIMEOUT",
         "KATELLO_VERSION",
+        "PULP_VERSION",
         "CANDLEPIN_VERSION",
         "CANDLEPIN_VERSION_XYZ",
     ]
@@ -137,6 +139,7 @@ def load_config(version: str) -> ReleaseConfig:
         rpm_check_url=data["RPM_CHECK_URL"],
         rpm_check_timeout=_parse_int(data["RPM_CHECK_TIMEOUT"], "RPM_CHECK_TIMEOUT", settings_path),
         katello_version=data["KATELLO_VERSION"],
+        pulp_version=data["PULP_VERSION"],
         candlepin_version=data["CANDLEPIN_VERSION"],
         candlepin_version_xyz=data["CANDLEPIN_VERSION_XYZ"],
     )

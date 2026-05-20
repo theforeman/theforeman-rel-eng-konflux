@@ -32,6 +32,7 @@ SAMPLE_CONFIG = ReleaseConfig(
     rpm_check_url="https://example.com",
     rpm_check_timeout=3600,
     katello_version="4.15",
+    pulp_version="3.105",
     candlepin_version="4.7",
     candlepin_version_xyz="4.7.4",
 )
@@ -154,6 +155,7 @@ class TestGenerateReleaseplanOverlay(unittest.TestCase):
             rpm_check_url="https://example.com",
             rpm_check_timeout=3600,
             katello_version="4.16",
+            pulp_version="3.105",
             candlepin_version="4.8",
             candlepin_version_xyz="4.8.0",
         )
