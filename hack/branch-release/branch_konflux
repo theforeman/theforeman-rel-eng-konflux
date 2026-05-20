@@ -96,6 +96,7 @@ _CONTAINERFILE_PATCHES: dict[str, list[tuple[str, str, str]]] = {
         ("images/foreman/Containerfile", "FOREMAN_VERSION", "version"),
         ("images/foreman/Containerfile", "KATELLO_VERSION", "katello_version"),
         ("images/foreman-proxy/Containerfile", "FOREMAN_VERSION", "version"),
+        ("images/foreman-proxy/Containerfile", "KATELLO_VERSION", "katello_version"),
     ],
     "candlepin-oci-images": [
         ("images/candlepin/Containerfile", "VERSION", "candlepin_version"),
