@@ -124,7 +124,7 @@ class TestOpenPr(unittest.TestCase):
         existing_url = "https://github.com/theforeman/foreman-oci-images/pull/40"
         mock_run = MagicMock(return_value=_run_returning(existing_url))
         with patch("lib.github._run", mock_run):
-            url = open_pr("T", "B", "foreman-3.19", "Odilhao:foreman-3.19",
+            url = open_pr("T", "B", "foreman-3.19", "someuser:foreman-3.19",
                           draft=True, cwd=Path("/w"), dry_run=False,
                           repo="theforeman/foreman-oci-images")
         self.assertEqual(url, existing_url)
@@ -135,7 +135,7 @@ class TestOpenPr(unittest.TestCase):
         self.assertIn("theforeman/foreman-oci-images", list_cmd)
         # gh pr list --head takes branch name only, not user:branch.
         self.assertIn("foreman-3.19", list_cmd)
-        self.assertNotIn("Odilhao:foreman-3.19", list_cmd)
+        self.assertNotIn("someuser:foreman-3.19", list_cmd)
 
     def test_null_jq_output_not_treated_as_existing_pr(self) -> None:
         """jq .[0].url on an empty list emits 'null'; open_pr must not treat that as a valid URL."""
@@ -143,7 +143,7 @@ class TestOpenPr(unittest.TestCase):
         create_result = _run_returning("https://github.com/theforeman/foreman-oci-images/pull/99")
         mock_run = MagicMock(side_effect=[list_result, create_result])
         with patch("lib.github._run", mock_run):
-            url = open_pr("T", "B", "foreman-3.19", "Odilhao:foreman-3.19",
+            url = open_pr("T", "B", "foreman-3.19", "someuser:foreman-3.19",
                           draft=True, cwd=Path("/w"), dry_run=False)
         # Should have called pr create after seeing "null".
         self.assertEqual(mock_run.call_count, 2)
@@ -155,7 +155,7 @@ class TestOpenPr(unittest.TestCase):
         create_result = _run_returning("https://github.com/theforeman/foreman-oci-images/pull/99")
         mock_run = MagicMock(side_effect=[list_result, create_result])
         with patch("lib.github._run", mock_run):
-            open_pr("T", "B", "foreman-3.19", "Odilhao:foreman-3.19",
+            open_pr("T", "B", "foreman-3.19", "someuser:foreman-3.19",
                     draft=True, cwd=Path("/w"), dry_run=False,
                     repo="theforeman/foreman-oci-images")
         create_cmd = mock_run.call_args_list[1][0][0]
@@ -171,7 +171,7 @@ class TestOpenPr(unittest.TestCase):
 
         mock_run = MagicMock(side_effect=[list_empty, create_error, list_found])
         with patch("lib.github._run", mock_run):
-            url = open_pr("T", "B", "foreman-3.19", "Odilhao:foreman-3.19",
+            url = open_pr("T", "B", "foreman-3.19", "someuser:foreman-3.19",
                           draft=True, cwd=Path("/w"), dry_run=False)
         self.assertEqual(url, existing_url)
         self.assertEqual(mock_run.call_count, 3)
