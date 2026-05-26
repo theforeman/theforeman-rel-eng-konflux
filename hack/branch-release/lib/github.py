@@ -143,7 +143,7 @@ def open_pr(
     base_branch:
         Target branch for the PR.
     head:
-        Source branch for the PR (e.g. "Odilhao:foreman-3.19").
+        Source branch for the PR (e.g. "myuser:foreman-3.19").
     draft:
         Whether to open the PR as a draft.
     cwd:
