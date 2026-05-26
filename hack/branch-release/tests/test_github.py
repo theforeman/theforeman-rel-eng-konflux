@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -138,7 +139,6 @@ class TestOpenPr(unittest.TestCase):
 
     def test_null_jq_output_not_treated_as_existing_pr(self) -> None:
         """jq .[0].url on an empty list emits 'null'; open_pr must not treat that as a valid URL."""
-        import subprocess
         list_result = _run_returning("null")
         create_result = _run_returning("https://github.com/theforeman/foreman-oci-images/pull/99")
         mock_run = MagicMock(side_effect=[list_result, create_result])
@@ -164,7 +164,6 @@ class TestOpenPr(unittest.TestCase):
 
     def test_fallback_on_create_failure(self) -> None:
         """If gh pr create fails, open_pr retries gh pr list and returns existing URL."""
-        import subprocess
         list_empty = _run_returning("")
         existing_url = "https://github.com/theforeman/foreman-oci-images/pull/40"
         list_found = _run_returning(existing_url)
@@ -180,7 +179,7 @@ class TestOpenPr(unittest.TestCase):
     def test_dry_run_prints_and_returns_placeholder(self) -> None:
         mock_run = MagicMock()
         with patch("lib.github._run", mock_run), \
-             patch("lib.github._dry_print") as mock_dry:
+             patch("lib.github._dry_print"):
             url = open_pr("T", "B", "base", "head",
                           draft=False, cwd=Path("/w"), dry_run=True)
         mock_run.assert_not_called()

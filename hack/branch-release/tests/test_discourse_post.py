@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -12,10 +11,10 @@ _BR = Path(__file__).parents[1]
 if str(_BR) not in sys.path:
     sys.path.insert(0, str(_BR))
 
-import importlib
-import importlib.machinery
-import importlib.util
-import types
+import importlib  # noqa: E402
+import importlib.machinery  # noqa: E402
+import importlib.util  # noqa: E402
+import types  # noqa: E402
 
 
 def _load_discourse_post() -> types.ModuleType:
