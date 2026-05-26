@@ -172,11 +172,18 @@ def test_makefile_patches_candlepin_includes_project_versions(branch_konflux_mod
     assert var_to_attr["PROJECT_XYZ_TAG"] == "candlepin_version_xyz"
 
 
-def test_makefile_patches_candlepin_foreman_xyz_uses_version_xyz(branch_konflux_mod) -> None:
-    """FOREMAN_XYZ_TAG in candlepin must track version_xyz (the RC/GA tag), not foreman_tag."""
+def test_makefile_patches_candlepin_foreman_xyz_uses_foreman_xyz_tag(branch_konflux_mod) -> None:
+    """FOREMAN_XYZ_TAG in candlepin must use foreman_xyz_tag (e.g. foreman-3.19.0-rc2)."""
     patches = branch_konflux_mod._MAKEFILE_PATCHES["candlepin-oci-images"]
     var_to_attr = {var: attr for _, var, attr in patches}
-    assert var_to_attr.get("FOREMAN_XYZ_TAG") == "version_xyz"
+    assert var_to_attr.get("FOREMAN_XYZ_TAG") == "foreman_xyz_tag"
+
+
+def test_makefile_patches_pulp_foreman_xyz_uses_foreman_xyz_tag(branch_konflux_mod) -> None:
+    """FOREMAN_XYZ_TAG in pulp must use foreman_xyz_tag, not foreman_tag."""
+    patches = branch_konflux_mod._MAKEFILE_PATCHES["pulp-oci-images"]
+    var_to_attr = {var: attr for _, var, attr in patches}
+    assert var_to_attr.get("FOREMAN_XYZ_TAG") == "foreman_xyz_tag"
 
 
 def test_makefile_patches_entries_are_three_tuples(branch_konflux_mod) -> None:

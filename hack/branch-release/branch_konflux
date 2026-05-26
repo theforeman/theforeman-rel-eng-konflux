@@ -119,13 +119,13 @@ _MAKEFILE_PATCHES: dict[str, list[tuple[str, str, str]]] = {
         ("Makefile", "PROJECT_XY_TAG", "candlepin_version"),
         ("Makefile", "PROJECT_XYZ_TAG", "candlepin_version_xyz"),
         ("Makefile", "FOREMAN_XY_TAG", "foreman_tag"),
-        ("Makefile", "FOREMAN_XYZ_TAG", "version_xyz"),
+        ("Makefile", "FOREMAN_XYZ_TAG", "foreman_xyz_tag"),
     ],
     "pulp-oci-images": [
         ("Makefile", "PROJECT_XY_TAG", "pulp_version"),
         ("Makefile", "PROJECT_XYZ_TAG", "pulp_version"),
         ("Makefile", "FOREMAN_XY_TAG", "foreman_tag"),
-        ("Makefile", "FOREMAN_XYZ_TAG", "foreman_tag"),
+        ("Makefile", "FOREMAN_XYZ_TAG", "foreman_xyz_tag"),
     ],
 }
 

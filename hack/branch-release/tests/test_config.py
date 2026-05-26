@@ -45,6 +45,7 @@ class TestLoadConfig(unittest.TestCase):
         self.assertIn("theforeman/candlepin-oci-images", cfg.oci_repos)
         self.assertIn("3.19", cfg.release_tags)
         self.assertIn("3.19.0-rc2", cfg.release_tags)
+        self.assertEqual(cfg.foreman_xyz_tag, "foreman-3.19.0-rc2")
         self.assertEqual(
             cfg.rpm_check_url,
             "https://yum.theforeman.org/releases/3.19/el9/x86_64/repodata/repomd.xml",
