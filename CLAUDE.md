@@ -227,6 +227,7 @@ uv run pytest hack/branch-release/tests/
 yamllint .
 
 # Validate kustomize renders cleanly
+kustomize build tekton-catalog/pipelines/docker-build-oci-ta/
 kustomize build tekton-catalog/pipelines/push-to-external-registry/
 kustomize build tekton-catalog/tasks/buildah-oci-ta/
 ```
@@ -239,7 +240,36 @@ Bundles are **not** built from this repo's YAML directly — they are assembled 
 
 `tekton-catalog/hack/push-bundles.sh` is the local equivalent for manual testing only.
 
-**When a task bundle is updated:** after a new `task-buildah-oci-ta` bundle is published (triggered by a merge to `develop` that changes `tekton-catalog/tasks/buildah-oci-ta/`), open a follow-up PR to every OCI image repo to update the bundle digest in their `.tekton/` files. Use `skopeo inspect docker://quay.io/foreman/tekton-catalog/task-buildah-oci-ta:0.9 | jq -r .Digest` to get the current digest.
+### Bundle inventory
+
+| Bundle | Quay repo | Trigger |
+|---|---|---|
+| `pipeline-docker-build-oci-ta` | `quay.io/foreman/tekton-catalog/pipeline-docker-build-oci-ta` | Changes to `tekton-catalog/pipelines/docker-build-oci-ta/**`, task bundle changes, or weekly schedule |
+| `pipeline-push-to-external-registry` | `quay.io/foreman/tekton-catalog/pipeline-push-to-external-registry` | Changes to `tekton-catalog/pipelines/push-to-external-registry/**` |
+| `task-buildah-oci-ta` | `quay.io/foreman/tekton-catalog/task-buildah-oci-ta` | Changes to `tekton-catalog/tasks/buildah-oci-ta/**` |
+
+**`pipeline-docker-build-oci-ta`** is a patched fork of the upstream Konflux build pipeline. It embeds two overrides relative to upstream:
+- `build-container` task uses our custom `task-buildah-oci-ta` bundle (higher memory/CPU limits).
+- `build-source-image` param defaults to `"true"` (upstream default is `"false"`).
+
+The weekly scheduled rebuild (Monday 06:00 UTC) picks up upstream `docker-build-oci-ta` changes automatically, since the kustomization fetches `refs/heads/main` at build time. The `pipeline-docker-build-oci-ta` bundle is also rebuilt whenever `task-buildah-oci-ta` changes.
+
+**When a task bundle is updated:** the `pipeline-docker-build-oci-ta` bundle is rebuilt automatically in the same CI run. For OCI repos that are not yet using the custom pipeline bundle, also open a follow-up PR to update the bundle digest in their `.tekton/` files. Use `skopeo inspect docker://quay.io/foreman/tekton-catalog/task-buildah-oci-ta:0.9 | jq -r .Digest` to get the current digest.
+
+### Activating the custom pipeline bundle in tenants-config
+
+After `pipeline-docker-build-oci-ta` is published, update every Foreman component annotation in tenants-config to use our bundle instead of the upstream one:
+
+```yaml
+# Before (upstream bundle)
+build.appstudio.openshift.io/pipeline: '{"name":"docker-build-oci-ta","bundle":"latest"}'
+
+# After (our custom bundle)
+build.appstudio.openshift.io/pipeline: '{"name":"docker-build-oci-ta","bundle":"quay.io/foreman/tekton-catalog/pipeline-docker-build-oci-ta:latest"}'
+build.appstudio.openshift.io/request: "configure-pac"
+```
+
+The `configure-pac` annotation triggers Konflux to regenerate the `.tekton` files in the OCI repos with the correct pipeline bundle reference. **Regeneration does not preserve prior `.tekton` customizations** — `ADDITIONAL_TAGS` (see issue #26) must be re-applied after each `configure-pac` reconfiguration.
 
 ## PR/MR rules
 

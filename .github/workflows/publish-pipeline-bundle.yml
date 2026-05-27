@@ -7,6 +7,10 @@ on:
       - develop
     paths:
       - 'tekton-catalog/**'
+  schedule:
+    # Weekly rebuild to pick up upstream docker-build-oci-ta changes
+    # (kustomization.yaml fetches refs/heads/main at build time).
+    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -21,19 +25,33 @@ jobs:
         id: filter
         with:
           filters: |
-            pipeline:
-              - 'tekton-catalog/pipelines/**'
+            pipeline-push-to-external-registry:
+              - 'tekton-catalog/pipelines/push-to-external-registry/**'
+            pipeline-docker-build-oci-ta:
+              - 'tekton-catalog/pipelines/docker-build-oci-ta/**'
             task-buildah-oci-ta:
               - 'tekton-catalog/tasks/buildah-oci-ta/**'
             task-check-non-root-user:
               - 'tekton-catalog/tasks/check-non-root-user/**'
 
       - name: Set up kustomize
-        if: steps.filter.outputs.pipeline == 'true' || steps.filter.outputs.task-buildah-oci-ta == 'true' || steps.filter.outputs.task-check-non-root-user == 'true'
+        if: >-
+          steps.filter.outputs.pipeline-push-to-external-registry == 'true' ||
+          steps.filter.outputs.pipeline-docker-build-oci-ta == 'true' ||
+          steps.filter.outputs.task-buildah-oci-ta == 'true' ||
+          steps.filter.outputs.task-check-non-root-user == 'true' ||
+          github.event_name == 'schedule' ||
+          github.event_name == 'workflow_dispatch'
         uses: imranismail/setup-kustomize@v2
 
       - name: Install tkn CLI
-        if: steps.filter.outputs.pipeline == 'true' || steps.filter.outputs.task-buildah-oci-ta == 'true' || steps.filter.outputs.task-check-non-root-user == 'true'
+        if: >-
+          steps.filter.outputs.pipeline-push-to-external-registry == 'true' ||
+          steps.filter.outputs.pipeline-docker-build-oci-ta == 'true' ||
+          steps.filter.outputs.task-buildah-oci-ta == 'true' ||
+          steps.filter.outputs.task-check-non-root-user == 'true' ||
+          github.event_name == 'schedule' ||
+          github.event_name == 'workflow_dispatch'
         run: |
           TKN_VERSION=0.39.0
           curl -Ls "https://github.com/tektoncd/cli/releases/download/v${TKN_VERSION}/tkn_${TKN_VERSION}_Linux_x86_64.tar.gz" \
@@ -42,7 +60,13 @@ jobs:
           tkn version
 
       - name: Login to Quay.io
-        if: steps.filter.outputs.pipeline == 'true' || steps.filter.outputs.task-buildah-oci-ta == 'true' || steps.filter.outputs.task-check-non-root-user == 'true'
+        if: >-
+          steps.filter.outputs.pipeline-push-to-external-registry == 'true' ||
+          steps.filter.outputs.pipeline-docker-build-oci-ta == 'true' ||
+          steps.filter.outputs.task-buildah-oci-ta == 'true' ||
+          steps.filter.outputs.task-check-non-root-user == 'true' ||
+          github.event_name == 'schedule' ||
+          github.event_name == 'workflow_dispatch'
         uses: redhat-actions/podman-login@v1
         with:
           registry: quay.io
@@ -50,7 +74,7 @@ jobs:
           password: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
       - name: Build and push push-to-external-registry pipeline bundle
-        if: steps.filter.outputs.pipeline == 'true'
+        if: steps.filter.outputs.pipeline-push-to-external-registry == 'true'
         run: |
           REPO=quay.io/foreman/tekton-catalog/pipeline-push-to-external-registry
           BUILT=$(kustomize build tekton-catalog/pipelines/push-to-external-registry/)
@@ -80,6 +104,23 @@ jobs:
         run: |
           REPO=quay.io/foreman/tekton-catalog/task-buildah-oci-ta
           BUILT=$(kustomize build tekton-catalog/tasks/buildah-oci-ta/)
+          FULL_VERSION=$(echo "$BUILT" | python3 -c "import sys, yaml; d = yaml.safe_load(sys.stdin); print(d['metadata'].get('labels', {}).get('app.kubernetes.io/version') or d['metadata']['annotations']['tekton.dev/pipelines.minVersion'])")
+          MINOR_VERSION=$(echo "$FULL_VERSION" | cut -d. -f1,2)
+          echo "Publishing ${REPO}:${FULL_VERSION} and ${REPO}:${MINOR_VERSION}"
+          echo "$BUILT" | tkn bundle push "${REPO}:${FULL_VERSION}" -f -
+          skopeo copy "docker://${REPO}:${FULL_VERSION}" "docker://${REPO}:${MINOR_VERSION}"
+          skopeo copy "docker://${REPO}:${FULL_VERSION}" "docker://${REPO}:latest"
+          echo "Published ${REPO}:${FULL_VERSION}, ${REPO}:${MINOR_VERSION} and ${REPO}:latest"
+
+      - name: Build and push docker-build-oci-ta pipeline bundle
+        if: >-
+          steps.filter.outputs.pipeline-docker-build-oci-ta == 'true' ||
+          steps.filter.outputs.task-buildah-oci-ta == 'true' ||
+          github.event_name == 'schedule' ||
+          github.event_name == 'workflow_dispatch'
+        run: |
+          REPO=quay.io/foreman/tekton-catalog/pipeline-docker-build-oci-ta
+          BUILT=$(kustomize build tekton-catalog/pipelines/docker-build-oci-ta/)
           FULL_VERSION=$(echo "$BUILT" | python3 -c "import sys, yaml; d = yaml.safe_load(sys.stdin); print(d['metadata'].get('labels', {}).get('app.kubernetes.io/version') or d['metadata']['annotations']['tekton.dev/pipelines.minVersion'])")
           MINOR_VERSION=$(echo "$FULL_VERSION" | cut -d. -f1,2)
           echo "Publishing ${REPO}:${FULL_VERSION} and ${REPO}:${MINOR_VERSION}"

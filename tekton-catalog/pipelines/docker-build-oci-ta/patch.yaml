@@ -1,0 +1,31 @@
+---
+# JSON 6902 patch for the docker-build-oci-ta pipeline.
+#
+# Upstream pipeline params (0-based indices used below):
+#   9: build-source-image   ← default "false" → override to "true"
+#
+# Upstream pipeline tasks (0-based indices used below):
+#   3: build-container      ← uses upstream buildah-oci-ta; redirect to our custom bundle
+#
+# Task indices verified with:
+#   curl -Ls "$UPSTREAM_URL" | yq ".spec.tasks.[].name" | nl -v0
+
+# Override build-source-image default to "true" — the generated .tekton files
+# default this to "false"; source images are required for production Quay pushes.
+- op: replace
+  path: /spec/params/9/default
+  value: "true"
+
+# Redirect build-container to our custom buildah-oci-ta bundle, which raises
+# memory/CPU limits to handle large Foreman images (build: 16Gi, sbom: 8Gi).
+- op: replace
+  path: /spec/tasks/3/taskRef
+  value:
+    resolver: bundles
+    params:
+      - name: bundle
+        value: quay.io/foreman/tekton-catalog/task-buildah-oci-ta:0.9
+      - name: name
+        value: buildah-oci-ta
+      - name: kind
+        value: task
