@@ -29,3 +29,95 @@
         value: buildah-oci-ta
       - name: kind
         value: task
+
+# Opt-in check-non-root-user task, disabled by default so components that
+# don't need it (pulp, candlepin) are unaffected. Components that do
+# (foreman, foreman-proxy) enable it after configure-pac by overriding
+# check-non-root-user / check-non-root-user-allowed-user in the generated
+# .tekton PipelineRun's top-level spec.params — a two-line override instead
+# of hand-copying the whole task block.
+- op: add
+  path: /spec/params/-
+  value:
+    name: check-non-root-user
+    type: string
+    default: "false"
+    description: When "true", fail the build if the image does not run as check-non-root-user-allowed-user.
+- op: add
+  path: /spec/params/-
+  value:
+    name: check-non-root-user-allowed-user
+    type: string
+    default: ""
+    description: Expected non-root user the image should run as. Only checked when check-non-root-user is "true".
+- op: add
+  path: /spec/tasks/-
+  value:
+    name: check-non-root-user
+    runAfter:
+      - build-image-index
+    taskRef:
+      resolver: bundles
+      params:
+        - name: name
+          value: check-non-root-user
+        - name: bundle
+          value: quay.io/foreman/tekton-catalog/task-check-non-root-user:0.2@sha256:5d3b463691ade8dbb5fb25dc98b7dde3a97aea6e8f8b5e58c045ad34ed5ba08c
+        - name: kind
+          value: task
+    params:
+      - name: IMAGE_URL
+        value: $(tasks.build-image-index.results.IMAGE_URL)
+      - name: IMAGE_DIGEST
+        value: $(tasks.build-image-index.results.IMAGE_DIGEST)
+      - name: ALLOWED_USER
+        value: $(params.check-non-root-user-allowed-user)
+    when:
+      - input: $(params.check-non-root-user)
+        operator: in
+        values:
+          - "true"
+
+# Opt-in PR-comment task, disabled by default. {{ repo_url }}, {{ revision }},
+# {{ pull_request_number }} and {{ git_auth_secret }} are Pipelines-as-Code
+# variables — they only resolve because Konflux materializes this pipeline's
+# full spec inline into each component's generated .tekton PipelineRun file
+# (see CLAUDE.md "How tekton-catalog bundles are published"); they will not
+# resolve if the pipeline is ever consumed via a live pipelineRef instead.
+# Components enable this by overriding enable-pr-comment in the generated
+# .tekton PipelineRun's top-level spec.params (pull-request variant only —
+# {{ pull_request_number }} is undefined on push events).
+- op: add
+  path: /spec/params/-
+  value:
+    name: enable-pr-comment
+    type: string
+    default: "false"
+    description: When "true", post a PR comment with the built image tag after apply-tags. Only meaningful on pull_request-triggered PipelineRuns.
+- op: add
+  path: /spec/tasks/-
+  value:
+    name: post-image-tag
+    runAfter:
+      - apply-tags
+    taskRef:
+      name: github-add-comment
+    when:
+      - input: $(params.enable-pr-comment)
+        operator: in
+        values:
+          - "true"
+    params:
+      - name: REQUEST_URL
+        value: "{{ repo_url }}/pull/{{ pull_request_number }}"
+      - name: COMMENT_OR_FILE
+        value: |
+          :package: **Build complete!**
+
+          Test this image with tag: `$(params.output-image):pull-request-{{ pull_request_number }}`
+
+          Built from commit: [`{{ revision }}`]({{ repo_url }}/commit/{{ revision }})
+      - name: GITHUB_TOKEN_SECRET_NAME
+        value: "{{ git_auth_secret }}"
+      - name: GITHUB_TOKEN_SECRET_KEY
+        value: "git-provider-token"
