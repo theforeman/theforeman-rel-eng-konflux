@@ -37,6 +37,7 @@ print(version)")
   echo "==> Published ${repo}:${full_version}, ${repo}:${minor_version} and ${repo}:latest"
 }
 
+push_bundle pipeline-docker-build-oci-ta tekton-catalog/pipelines/docker-build-oci-ta
 push_bundle pipeline-push-to-external-registry tekton-catalog/pipelines/push-to-external-registry
 push_bundle task-buildah-oci-ta tekton-catalog/tasks/buildah-oci-ta
 push_bundle task-check-non-root-user tekton-catalog/tasks/check-non-root-user

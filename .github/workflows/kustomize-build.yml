@@ -36,3 +36,33 @@ jobs:
       - name: Build check-non-root-user task
         if: steps.filter.outputs.task-check-non-root-user == 'true'
         run: kustomize build tekton-catalog/tasks/check-non-root-user/
+
+      - name: Build docker-build-oci-ta pipeline
+        run: kustomize build tekton-catalog/pipelines/docker-build-oci-ta/
+
+      - name: Verify build-source-image defaults to true
+        run: |
+          BUILT=$(kustomize build tekton-catalog/pipelines/docker-build-oci-ta/)
+          DEFAULT=$(echo "$BUILT" | yq '.spec.params[] | select(.name == "build-source-image") | .default')
+          if [ "$DEFAULT" != "true" ]; then
+            echo "ERROR: build-source-image default is '${DEFAULT}', expected 'true'"
+            echo "The upstream pipeline may have reordered params — check patch.yaml index."
+            exit 1
+          fi
+          echo "OK: build-source-image default is 'true'"
+
+      - name: Verify build-container uses our custom task bundle
+        run: |
+          BUILT=$(kustomize build tekton-catalog/pipelines/docker-build-oci-ta/)
+          RESOLVER=$(echo "$BUILT" | yq '.spec.tasks[] | select(.name == "build-container") | .taskRef.resolver')
+          BUNDLE=$(echo "$BUILT" | yq '.spec.tasks[] | select(.name == "build-container") | .taskRef.params[] | select(.name == "bundle") | .value')
+          if [ "$RESOLVER" != "bundles" ]; then
+            echo "ERROR: build-container taskRef.resolver is '${RESOLVER}', expected 'bundles'"
+            echo "The upstream pipeline may have reordered tasks — check patch.yaml index."
+            exit 1
+          fi
+          if [[ "$BUNDLE" != quay.io/foreman/tekton-catalog/task-buildah-oci-ta* ]]; then
+            echo "ERROR: build-container bundle is '${BUNDLE}', expected quay.io/foreman/tekton-catalog/task-buildah-oci-ta:*"
+            exit 1
+          fi
+          echo "OK: build-container uses ${BUNDLE}"
