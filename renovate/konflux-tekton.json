@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Shared Renovate preset for The Foreman Konflux and Tekton repositories",
+  "github-actions": {
+    "enabled": false
+  },
+  "tekton": {
+    "schedule": ["at any time"]
+  },
+  "packageRules": [
+    {
+      "description": "Update container images at any time",
+      "matchDatasources": ["docker"],
+      "schedule": ["at any time"]
+    },
+    {
+      "description": "Keep Clair on 0.3.x until Roxctl is available in the cluster",
+      "matchManagers": ["tekton"],
+      "matchPackageNames": [
+        "quay.io/konflux-ci/tekton-catalog/task-clair-scan"
+      ],
+      "allowedVersions": "<0.4.0"
+    }
+  ]
+}
