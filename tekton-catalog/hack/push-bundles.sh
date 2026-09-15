@@ -10,7 +10,11 @@ push_bundle() {
   local src=$2
   local repo="${REGISTRY}/${name}"
   local built
-  built=$(kustomize build "${src}")
+  if [[ "${name}" == "task-buildah-oci-ta" ]]; then
+    built=$(tekton-catalog/hack/build-buildah-oci-ta.sh)
+  else
+    built=$(kustomize build "${src}")
+  fi
 
   # Tasks carry app.kubernetes.io/version (e.g. 0.9.3); pipelines fall back
   # to tekton.dev/pipelines.minVersion (e.g. 0.12.1).

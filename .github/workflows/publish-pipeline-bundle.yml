@@ -25,6 +25,7 @@ jobs:
               - 'tekton-catalog/pipelines/**'
             task-buildah-oci-ta:
               - 'tekton-catalog/tasks/buildah-oci-ta/**'
+              - 'tekton-catalog/hack/build-buildah-oci-ta.sh'
             task-check-non-root-user:
               - 'tekton-catalog/tasks/check-non-root-user/**'
 
@@ -79,7 +80,7 @@ jobs:
         if: steps.filter.outputs.task-buildah-oci-ta == 'true'
         run: |
           REPO=quay.io/foreman/tekton-catalog/task-buildah-oci-ta
-          BUILT=$(kustomize build tekton-catalog/tasks/buildah-oci-ta/)
+          BUILT=$(tekton-catalog/hack/build-buildah-oci-ta.sh)
           FULL_VERSION=$(echo "$BUILT" | python3 -c "import sys, yaml; d = yaml.safe_load(sys.stdin); print(d['metadata'].get('labels', {}).get('app.kubernetes.io/version') or d['metadata']['annotations']['tekton.dev/pipelines.minVersion'])")
           MINOR_VERSION=$(echo "$FULL_VERSION" | cut -d. -f1,2)
           echo "Publishing ${REPO}:${FULL_VERSION} and ${REPO}:${MINOR_VERSION}"

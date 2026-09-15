@@ -24,10 +24,22 @@ jobs:
               - 'tekton-catalog/pipelines/push-to-external-registry/**'
             task-check-non-root-user:
               - 'tekton-catalog/tasks/check-non-root-user/**'
+            task-buildah-oci-ta:
+              - 'tekton-catalog/tasks/buildah-oci-ta/**'
+              - 'tekton-catalog/hack/build-buildah-oci-ta.sh'
 
       - name: Set up kustomize
-        if: steps.filter.outputs.pipeline == 'true' || steps.filter.outputs.task-check-non-root-user == 'true'
+        if: steps.filter.outputs.pipeline == 'true' || steps.filter.outputs.task-check-non-root-user == 'true' || steps.filter.outputs.task-buildah-oci-ta == 'true'
         uses: imranismail/setup-kustomize@v2
+
+      - name: Install tkn CLI
+        if: steps.filter.outputs.task-buildah-oci-ta == 'true'
+        run: |
+          TKN_VERSION=0.39.0
+          curl -Ls "https://github.com/tektoncd/cli/releases/download/v${TKN_VERSION}/tkn_${TKN_VERSION}_Linux_x86_64.tar.gz" \
+            | tar xz tkn
+          sudo mv tkn /usr/local/bin/
+          tkn version
 
       - name: Build push-to-external-registry pipeline
         if: steps.filter.outputs.pipeline == 'true'
@@ -36,3 +48,7 @@ jobs:
       - name: Build check-non-root-user task
         if: steps.filter.outputs.task-check-non-root-user == 'true'
         run: kustomize build tekton-catalog/tasks/check-non-root-user/
+
+      - name: Build buildah-oci-ta task
+        if: steps.filter.outputs.task-buildah-oci-ta == 'true'
+        run: tekton-catalog/hack/build-buildah-oci-ta.sh
