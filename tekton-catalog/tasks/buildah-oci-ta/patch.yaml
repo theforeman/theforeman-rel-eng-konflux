@@ -6,9 +6,10 @@
 #      0  use-trusted-artifact
 #      1  build
 #      2  push
-#      3  sbom-syft-generate
-#      4  prepare-sboms
-#      5  upload-sbom
+#      3  exclude-git-annex (Foreman)
+#      4  sbom-syft-generate
+#      5  prepare-sboms
+#      6  upload-sbom
 
 # Set a low stepTemplate baseline so steps without explicit resources
 # don't silently consume large allocations.
@@ -45,9 +46,31 @@
       cpu: 600m
       memory: 128Mi
 
+# Remove Git Annex's content-addressed objects before the source SBOM scan.
+# These objects are build metadata, are not copied into the image, and can
+# contain paths that Syft cannot index as regular files.
+- op: add
+  path: /spec/steps/3
+  value:
+    name: exclude-git-annex
+    image: quay.io/konflux-ci/task-runner:1.6.0@sha256:1abfe4e50d4e961d0fd9790202565f93ee650fe8dfc50932c94989acba10485f
+    script: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      annex_dir=/var/workdir/source/images/pulp-source/pulpcore-packaging/.git/annex
+      if [[ -d "${annex_dir}" ]]; then
+        echo "Removing Git Annex metadata from the source SBOM scan: ${annex_dir}"
+        rm -rf -- "${annex_dir}"
+      else
+        echo "Git Annex metadata directory not present: ${annex_dir}"
+      fi
+    securityContext:
+      runAsUser: 0
+
 # sbom-syft-generate: OOM failure observed at the upstream 4Gi limit.
 - op: replace
-  path: /spec/steps/3/computeResources
+  path: /spec/steps/4/computeResources
   value:
     limits:
       cpu: 1100m
@@ -58,7 +81,7 @@
 
 # prepare-sboms
 - op: replace
-  path: /spec/steps/4/computeResources
+  path: /spec/steps/5/computeResources
   value:
     limits:
       cpu: 100m
@@ -69,7 +92,7 @@
 
 # upload-sbom
 - op: replace
-  path: /spec/steps/5/computeResources
+  path: /spec/steps/6/computeResources
   value:
     limits:
       cpu: 100m
