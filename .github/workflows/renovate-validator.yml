@@ -1,0 +1,21 @@
+---
+name: Validate Renovate configuration
+
+on:
+  push:
+    paths:
+      - 'renovate/**'
+      - '.github/workflows/renovate-validator.yml'
+  pull_request:
+    paths:
+      - 'renovate/**'
+      - '.github/workflows/renovate-validator.yml'
+
+jobs:
+  renovate-config-file-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: konflux-ci/renovate-config-validator-action@main
+        with:
+          config_file: renovate/konflux-tekton.json
