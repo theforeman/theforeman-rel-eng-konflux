@@ -46,9 +46,9 @@
       cpu: 600m
       memory: 128Mi
 
-# Remove Git Annex's content-addressed objects before the source SBOM scan.
-# These objects are build metadata, are not copied into the image, and can
-# contain paths that Syft cannot index as regular files.
+# Remove the submodule's Git metadata before the source SBOM scan. A Git
+# submodule's .git entry is usually a file pointing at the real Git directory,
+# so checking only for .git/annex does not work reliably.
 - op: add
   path: /spec/steps/3
   value:
@@ -58,12 +58,12 @@
       #!/usr/bin/env bash
       set -euo pipefail
 
-      annex_dir=/var/workdir/source/images/pulp-source/pulpcore-packaging/.git/annex
-      if [[ -d "${annex_dir}" ]]; then
-        echo "Removing Git Annex metadata from the source SBOM scan: ${annex_dir}"
-        rm -rf -- "${annex_dir}"
+      git_metadata=/var/workdir/source/images/pulp-source/pulpcore-packaging/.git
+      if [[ -e "${git_metadata}" || -L "${git_metadata}" ]]; then
+        echo "Removing Git metadata from the source SBOM scan: ${git_metadata}"
+        rm -rf -- "${git_metadata}"
       else
-        echo "Git Annex metadata directory not present: ${annex_dir}"
+        echo "Git metadata entry not present: ${git_metadata}"
       fi
     securityContext:
       runAsUser: 0
