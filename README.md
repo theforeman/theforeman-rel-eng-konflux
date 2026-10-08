@@ -18,6 +18,7 @@ To interact with the resources in this repository, you need:
 - **`tekton-catalog/`** - Custom Tekton pipelines and tasks used for building and releasing container images. Pipelines and tasks are published as OCI bundles to [quay.io/foreman/tekton-catalog](https://quay.io/organization/foreman).
 
 - **`docs/`** - Documentation including release logic and procedures.
+  - [Hermetic RPM builds for Foreman OCI images](docs/hermetic-rpm-builds.md)
 
 Konflux project definitions (Applications, Components) and release configuration (ReleasePlan, ReleasePlanAdmission) are managed in the [tenants-config](https://gitlab.com/fedora/infrastructure/konflux/tenants-config/-/tree/main/clusters/kflux-fedora-01/tenants/theforeman-org-tenant) repository.
 
