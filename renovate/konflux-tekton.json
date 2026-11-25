@@ -2,6 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Shared Renovate preset for The Foreman Konflux and Tekton repositories",
   "minimumReleaseAge": "0 days",
+  "platformAutomerge": false,
   "github-actions": {
     "enabled": false
   },
@@ -9,6 +10,7 @@
     "schedule": ["at any time"]
   },
   "rpm-lockfile": {
+    "automerge": true,
     "lockFileMaintenance": {
       "enabled": true,
       "schedule": ["at any time"]
@@ -19,6 +21,16 @@
       "description": "Update container images at any time",
       "matchDatasources": ["docker"],
       "schedule": ["at any time"]
+    },
+    {
+      "description": "Automerge Containerfile image updates after CI passes",
+      "matchManagers": ["dockerfile"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge Tekton dependency updates after CI passes",
+      "matchManagers": ["tekton"],
+      "automerge": true
     },
     {
       "description": "Keep Clair on 0.3.x until Roxctl is available in the cluster",
